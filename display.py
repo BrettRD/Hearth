@@ -27,16 +27,24 @@ if __name__ == '__main__':
     # Intialize the library (must be called once before other functions).
     strip.begin()
 
-    while True:
-        image = sim.next()
-        for col in range(0, cols):
-            for row in range(0, rows):
+    try:
+        while True:
+            #step the animation
+            image = sim.next()
+            for col in range(0, cols):
+                for row in range(0, rows):
+                    #assign channels of the image to leds
+                    red = image[row][col][0]
+                    green = image[row][col][1]
+                    blue = image[row][col][2]
+                    strip.setPixelColor((col*rows) + row, Color(red,green,blue))
+            strip.show()
+            #sleep(0.02)
 
-                red = image[row][col][1] / 16
-                green = image[row][col][2] / 16
-                blue = image[row][col][0] / 16
-                strip.setPixelColor((col*rows) + row, Color(red,green,blue))
+
+    except KeyboardInterrupt:
+        #clean up
+        for j in range(strip.numPixels()):
+            strip.setPixelColor(j, Color(0,0,0))
         strip.show()
-        sleep(0.02)
-
-
+        exit(1)
