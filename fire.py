@@ -16,7 +16,7 @@ class Fire:
         return [ min( int(((x/256.)**exponent) / divisor * 256.), 2047) for x in xrange(2048) ]
 
     def color(self, x):
-        r,g,b = (x**1*3, x**1.5*4., x**2)
+        r,g,b = (x**1*3, 0.7*(x**1.5*4.), 0.2*(x**2))
         if r > 1.:
             r = 1.
         if g > 1.:
