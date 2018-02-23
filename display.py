@@ -4,6 +4,9 @@
 from time import sleep
 from fire import Fire
 from neopixel import *
+import rospy
+from std_msgs.msg import String
+from Queue import Queue, Full, Empty
 
 cols=24
 rows=45
@@ -20,7 +23,62 @@ LED_STRIP      = ws.SK6812_STRIP_GRBW
 
 sim = Fire(cols,rows)
 
-# Main program logic follows:
+#callback from the ROS message bus
+# making no assumptions about synchronous behaviour
+#  load messages into a queue of depth one.
+def callback(data, queue):
+    rospy.loginfo(rospy.get_caller_id() + 'callback %s', data.data)
+    try: #async so there is no gain in testing first
+        queue.get(False)
+    except Empty:
+        pass #an empty queue is what we want.
+    queue.put(data.data, False)  #should never except Full
+
+
+def mainloop(strip, sim):
+    #queue of length one to sync data with the subscription callback
+    subQueue = Queue(1)
+    cbstring  = "startup"
+
+    rospy.init_node('hearth', anonymous=True)
+
+    rospy.Subscriber('stoke', String, callback, subQueue)
+
+    # spin() simply keeps python from exiting until this node is stopped
+    # rospy.spin()
+    rate = rospy.Rate(1)
+    while not rospy.is_shutdown():
+        try:
+            cbstring = subQueue.get(False)
+        except:
+            pass #no news from the message bus.
+
+        if (cbstring=="ignite"):
+            animate(strip)
+        else:
+            blank(strip)
+        rate.sleep()
+
+
+def blank(strip):
+    for j in range(strip.numPixels()):
+        strip.setPixelColor(j, Color(0,0,0))
+    strip.show()
+
+
+def animate(strip, sim):
+    #step the animation
+    image = sim.next()
+    for col in range(0, cols):
+        for row in range(0, rows):
+            #assign channels of the image to leds
+            red = image[row][col][0]
+            green = image[row][col][1]
+            blue = image[row][col][2]
+            strip.setPixelColor((col*rows) + row, Color(red,green,blue))
+    strip.show()
+
+
 if __name__ == '__main__':
     # Create NeoPixel object with appropriate configuration.
     strip = Adafruit_NeoPixel(LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS, LED_CHANNEL, LED_STRIP)
@@ -28,23 +86,9 @@ if __name__ == '__main__':
     strip.begin()
 
     try:
-        while True:
-            #step the animation
-            image = sim.next()
-            for col in range(0, cols):
-                for row in range(0, rows):
-                    #assign channels of the image to leds
-                    red = image[row][col][0]
-                    green = image[row][col][1]
-                    blue = image[row][col][2]
-                    strip.setPixelColor((col*rows) + row, Color(red,green,blue))
-            strip.show()
-            #sleep(0.02)
-
+        mainloop(strip, sim)
 
     except KeyboardInterrupt:
         #clean up
-        for j in range(strip.numPixels()):
-            strip.setPixelColor(j, Color(0,0,0))
-        strip.show()
+        blank(strip)
         exit(1)
